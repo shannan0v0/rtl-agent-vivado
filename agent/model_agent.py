@@ -87,19 +87,30 @@ class NoRedirect(urllib.request.HTTPRedirectHandler):
         return None
 
 
-def http_post_once(url: str, body: bytes, timeout_s: float) -> Tuple[int, Mapping[str, str], bytes]:
+def http_post_once(url: str, body: bytes, timeout_s: float, *, api_key: str | None = None) -> Tuple[int, Mapping[str, str], bytes]:
+    headers = {"Content-Type": "application/json"}
+    if api_key is not None:
+        headers["Authorization"] = "Bearer " + api_key
     request = urllib.request.Request(
         url,
         data=body,
-        headers={"Content-Type": "application/json"},
+        headers=headers,
         method="POST",
     )
     opener = urllib.request.build_opener(NoRedirect())
     try:
         with opener.open(request, timeout=max(0.001, timeout_s)) as response:
-            return int(response.status), dict(response.headers.items()), response.read()
+            data = response.read()
+            if api_key is not None:
+                if api_key.encode("ascii") in data:
+                    raise ValueError("Provider response contained the API credential")
+                return int(response.status), {}, data
+            return int(response.status), dict(response.headers.items()), data
     except urllib.error.HTTPError as error:
-        return int(error.code), dict(error.headers.items()) if error.headers else {}, error.read()
+        with error:
+            if api_key is not None:
+                return int(error.code), {}, b""
+            return int(error.code), dict(error.headers.items()) if error.headers else {}, error.read()
 
 
 Transport = Callable[[str, bytes, float], Tuple[int, Mapping[str, str], bytes]]
@@ -120,6 +131,7 @@ def _generate_once(
     fresh_start: bool = False,
     clean_reread: bool = False,
     edit_mode: bool = False,
+    provider_defaults: bool = False,
     on_trace: Callable[[dict[str, Any]], None] | None = None,
 ) -> dict[str, Any]:
     """Make at most one POST. Failures are recorded and always yield empty RTL."""
@@ -158,9 +170,6 @@ def _generate_once(
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": public_input},
             ],
-            "temperature": config.temperature,
-            "top_p": config.top_p,
-            "max_tokens": config.max_tokens,
         }
         if repair is not None and edit_mode:
             previous_code, feedback = repair
@@ -206,8 +215,12 @@ def _generate_once(
                                feedback_in_request=True)
         call_status["prompt_stage"] = "independent_initial" if repair is None else "post_candidate_repair"
         call_status["skill_loaded"] = repair is not None
-        generation, generation_summary = load_generation()
-        payload.update(generation)
+        if provider_defaults:
+            generation_summary = {"policy": "provider_defaults"}
+        else:
+            generation, generation_summary = load_generation()
+            payload.update(temperature=config.temperature, top_p=config.top_p, max_tokens=config.max_tokens)
+            payload.update(generation)
         _atomic_text(call_dir / "generation_config.json", json.dumps(
             generation_summary, ensure_ascii=False, sort_keys=True) + "\n")
         request_body = json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
@@ -517,6 +530,7 @@ def run_agent(
     *,
     timeout_s: float,
     transport: Transport | None = None,
+    provider_defaults: bool = False,
 ) -> dict[str, Any]:
     """Bounded compile/interface repair with the separate public-spec review retained."""
     started = time.monotonic()
@@ -635,6 +649,7 @@ def run_agent(
         result = _generate_once(
             task_dir, attempt_dir, config,
             timeout_s=min(300.0, remaining), transport=transport,
+            provider_defaults=provider_defaults,
             repair=repair, on_trace=record_model,
             fresh_start=fresh_start,
             clean_reread=clean_reread,
@@ -731,6 +746,10 @@ def run_agent(
         _atomic_text(attempt_dir / "behavior_check.json", json.dumps({
             "issues": issues, "scope": "public-spec reset timing only; no functional simulation",
         }, ensure_ascii=False, sort_keys=True) + "\n")
+        # API-only users can keep an interface-correct repair when EDA is absent.
+        if provider_defaults and not selected_code and check["status"] == "unavailable":
+            selected_code, selected, selected_round = candidate, dict(result), round_index
+            _atomic_text(solution_path, selected_code)
         events.append({"ts": time.time(), "tool": "public_spec_lint", "round": round_index,
                        "issues": issues, "functional_proof": False})
         _write_trace(trace_path, events)

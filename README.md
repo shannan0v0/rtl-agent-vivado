@@ -1,8 +1,22 @@
 # RTL Agent · 使用 Vivado 检查与修复生成的 Verilog
 
-输入描述电路行为和端口的文本，Agent 调用本地 Qwen 27B 生成 RTL，用 Vivado 检查编译和设计展开，并将诊断或公开规格检查发现的反例反馈给模型。每题最多调用模型三次，可保留此前通过编译的候选版本。结果以 Verilog 文件和运行日志输出。
+输入描述电路行为和端口的文本，Agent 可使用本地 Qwen 27B 或你指定的模型 API 生成 Verilog。配好 Vivado 后，Agent 会检查编译和设计展开，并将诊断或公开规格检查发现的反例反馈给模型。每题最多调用模型三次。
 
-## 环境要求
+## 用自己的模型 API
+
+准备 Python 3.12、服务商提供的 **API 基础地址、模型 ID 和 API Key**。接口需兼容 `POST /chat/completions`，使用 Bearer 鉴权，并在 `choices[0].message.content` 返回文本。这种方式无需本地 GPU 或 Qwen 权重。
+
+1. 下载仓库并进入项目目录。在该目录下创建 `my-task/prompt.txt`，用 UTF-8 保存题面，写清模块名、端口和电路行为。
+2. 将下面的地址和模型 ID 换成服务商给你的值，再运行命令。地址保留服务商要求的路径前缀（常见为 `/v1`）。程序会自动追加 `/chat/completions`。
+
+   ```shell
+   python run_api_model.py my-task my-result --base-url https://api.example.com/v1 --model your-model-id
+   ```
+
+3. 按提示输入 API Key，终端不会回显。脚本调用也可通过环境变量 `RTL_API_KEY` 提供密钥。题面、修复所需的候选 RTL 和诊断会发送给你选定的服务商。
+4. 打开 `my-result/solution.v` 查看代码，打开 `my-result/trace.jsonl` 查看调用与检查记录。每次运行使用新的输出目录。没有 Vivado 也可以生成候选代码；`compile_status` 为 `unavailable` 或 `not_run` 时，编译尚未得到验证。需要编译与修复反馈时，配置已授权的 Vivado，将其 `bin` 目录加入 `PATH` 或设置 `VIVADO_BIN`。
+
+## 本地 Qwen 模型的环境要求
 
 | 项目 | 当前版本使用的环境 |
 | --- | --- |
@@ -12,7 +26,7 @@
 | Python 与 EDA | Python 3.14，表格辅助求解使用 SymPy 1.14.0。RTL 编译检查使用 Vivado 2026.1 的 `xvlog`、`xelab` 和有效许可证 |
 | 服务 | 命令行任务使用本机推理服务；另开 HTTP 任务接口时需设置 `FPGACHINA_TOKEN` |
 
-**开始前先确认引擎来源。** 原项目使用赛事 Linux 实例预装的推理栈。当前脚本会核对二进制及库文件的 SHA256、固定路径和模型版本。请先从原平台或资产维护方取得匹配的运行包。GitHub 提供源码、配置示例和校验清单；GGUF 权重、Vivado 许可证和平台原生包需分别准备。目前支持本地模型，普通 PC 和第三方模型 API 尚无经验证的启动流程。[原生包文件清单](model/ENGINE_PACKAGE_FINGERPRINTS.json) · [引擎路径与启动参数](serve/runtime_assets.example.json)
+原项目使用赛事 Linux 实例预装的推理栈。本地模型启动脚本会核对二进制及库文件的 SHA256、固定路径和模型版本。请先从原平台或资产维护方取得匹配的运行包，并单独准备 GGUF 权重和 Vivado 许可证。[原生包文件清单](model/ENGINE_PACKAGE_FINGERPRINTS.json) · [引擎路径与启动参数](serve/runtime_assets.example.json)
 
 ## 1. 在新环境准备源码和权重
 
