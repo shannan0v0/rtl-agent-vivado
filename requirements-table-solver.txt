@@ -1,0 +1,4 @@
+# Runtime feature dependency for public-table SOP repair; not automatically installed.
+# mpmath range is from upstream SymPy1.14.0 setup.py; not a complete hash lock.
+sympy==1.14.0
+mpmath>=1.1.0,<1.4

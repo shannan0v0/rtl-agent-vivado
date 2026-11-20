@@ -1,0 +1,43 @@
+{
+  "cycle_events": {
+    "scope": "Explicit reset-release pulse or sampled-transition output; public edge obligations only",
+    "repair_invariants": [
+      "Bind the triggering event, sampled inputs, observation edge and pulse duration before choosing state/output registers",
+      "Every nonblocking assignment reads pre-edge values; compute the required post-edge output without accidental extra latency",
+      "A sampled transition pulse persists between active edges; live input changes must not erase it",
+      "Repair state, next-state, data publication and reset consistently; retain correct encodings and unrelated behavior"
+    ],
+    "unsupported": ["ambiguous clock edge", "unspecified event latency", "arbitrary FSM oracle", "unstated reset output values"]
+  },
+  "serial": {
+    "scope": "Explicit start/data/stop receiver; optional payload output; no inferred oversampling, parity or baud timing",
+    "repair_invariants": [
+      "Separate frame position from output projection: a completion-only receiver still consumes every public data bit",
+      "Start consumes one edge; N following edges consume N data bits; the next edge checks stop",
+      "A valid stop completes exactly once; missing stop enters recovery, and recovery delimiter must not complete the invalid frame",
+      "Reset discards partial reception; pulse and state reset together; only compare payload when it is publicly valid"
+    ],
+    "checks": ["normal frames", "back-to-back frames", "payload extremes", "missing stop then delimiter and a fresh frame", "reset at multiple frame positions"],
+    "unsupported": ["unspecified recovery policy", "parity", "oversampling", "baud dividers", "multiple stop bits", "unresolved clock semantics"]
+  },
+  "bcd": {
+    "scope": "Explicit synchronous packed decimal up-counter; not arbitrary enable mappings",
+    "repair_invariants": [
+      "All digits including the highest wrap 9 to 0",
+      "Carry into digit k depends on every lower digit being 9 before the edge",
+      "Compute all digit updates from the same old state; reset and output enable conventions follow the public specification"
+    ],
+    "checks": ["each decimal carry boundary", "full rollover", "reset around carry", "enable timing only when explicit"],
+    "unsupported": ["ambiguous enable mapping", "saturation", "down counting"]
+  },
+  "fsm": {
+    "scope": "Knowledge card only; no generic executable oracle implemented",
+    "repair_invariants": [
+      "Write transition conditions for every state and legal input before encoding states",
+      "Distinguish Moore outputs from Mealy outputs and the edge when each becomes visible",
+      "State, counter, storage and reset must describe the same cycle; specify terminal and recovery transitions"
+    ],
+    "checks": ["reset", "every public transition", "self loops", "overlapping patterns", "terminal states", "counter boundary transitions"],
+    "unsupported": ["diagram not represented in public text", "unstated transition priority", "no generic FSM oracle yet"]
+  }
+}

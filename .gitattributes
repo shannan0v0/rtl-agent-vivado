@@ -1,0 +1,9 @@
+# Team-authored shell entry points use LF for Linux shebang execution.
+*.sh text eol=lf
+serve/*.sh text eol=lf
+
+# Last-match overrides preserve selected upstream baseline bytes exactly.
+baseline.py -text
+official_entry/baseline.py -text
+run_baseline.sh -text
+official_entry/run_baseline.sh -text

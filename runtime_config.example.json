@@ -1,0 +1,16 @@
+{
+  "entry_host": "127.0.0.1",
+  "entry_port": 7860,
+  "job_total_result_bytes": 536870912,
+  "model_base_url": "http://127.0.0.1:18080/v1",
+  "model_name": "Qwen3.8-27B-UD-Q5_K_M",
+  "ctx_size": 32768,
+  "max_tokens": 8192,
+  "temperature": 0.0,
+  "top_p": 1.0,
+  "request_budget_s": 890,
+  "archive_reserve_s": 10,
+  "evidence_root": "/workspace/v4_submission/evidence",
+  "prompt_path": "./skill/prompt_templates/rtl_generation.md",
+  "model_lock_path": "/workspace/v4_submission/runtime/model_service.lock"
+}

@@ -1,0 +1,21 @@
+# Local runtime configuration and evidence must stay outside the sealed source.
+/runtime_config.json
+/serve/runtime_assets.json
+/runtime/
+/evidence/
+/retained_work/
+/runtime_logs/
+**/__pycache__/
+*.py[cod]
+*.gguf
+*.exe
+*.dll
+.env
+.env.*
+
+# Historical validation and this source-only audit are review material, not image inputs.
+/tests/
+/stage1_validation/
+/stage1_r1_validation/
+/packaging_validation/
+/entry_contract_validation/

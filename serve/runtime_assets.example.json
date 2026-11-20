@@ -1,0 +1,75 @@
+{
+  "schema_version": 1,
+  "status": "V4_PREINSTALLED_PACKAGE_IDENTITY_SOURCE_PREPARED_NOT_ACTIVATED",
+  "state_dir": "/workspace/v4_submission/runtime/service_state",
+  "llama_cpp": {
+    "binary_path": "/opt/llamacpp/llama-server",
+    "binary_sha256": "290708d22f8b495d36b8aedd0afb0cdc081c415548f855e6a950a75dd742ad97",
+    "source_commit": null,
+    "version": "0.4.0-dev (build 1, commit f114f91)",
+    "build_record_path": "/opt/rtl-agent/model/ENGINE_PACKAGE_FINGERPRINTS.json",
+    "build_record_sha256": "38a73b54691262f2c6525d9919a3f9c7cffae9aa3cd86ac598d7e0da73e2f06d",
+    "backend": "HIP",
+    "hip_rocm_version": null,
+    "cpu_architecture": "x86_64",
+    "target_gfx": "gfx1100",
+    "argv": [
+      "--log-verbosity",
+      "4",
+      "--model",
+      "/workspace/v2_migration_20261030/models/Qwen3.8-27B-UD-Q5_K_M.gguf",
+      "--alias",
+      "Qwen3.8-27B-UD-Q5_K_M",
+      "--host",
+      "127.0.0.1",
+      "--port",
+      "18081",
+      "--ctx-size",
+      "32768",
+      "--parallel",
+      "1",
+      "--n-gpu-layers",
+      "99",
+      "--device",
+      "ROCm0",
+      "--jinja",
+      "--chat-template-kwargs",
+      "{\"enable_thinking\":false}",
+      "--fit",
+      "off"
+    ],
+    "model_path": "/workspace/v2_migration_20261030/models/Qwen3.8-27B-UD-Q5_K_M.gguf",
+    "model_sha256": "2de73110cb254cbf09b54b717578dadff12ef1194e7271527e68202f39ba4bfd",
+    "alias": "Qwen3.8-27B-UD-Q5_K_M",
+    "context_tokens": 32768,
+    "identity_kind": "preinstalled_package"
+  },
+  "proxy": {
+    "listen_host": "127.0.0.1",
+    "listen_port": 18080,
+    "upstream_base_url": "http://127.0.0.1:18081/v1",
+    "evidence_dir": "/workspace/v4_submission/evidence/model_calls",
+    "context_path": "/workspace/v4_submission/runtime/model_record_context.json",
+    "socket_timeout_s": 850,
+    "max_body_bytes": 67108864
+  },
+  "production_ready": false,
+  "deployment_environment": {
+    "sdk_root": "/opt/python/lib/python3.14/site-packages/_rocm_sdk_devel",
+    "sdk_lib_dir": "/opt/python/lib/python3.14/site-packages/_rocm_sdk_devel/lib",
+    "library_path": "/opt/python/lib/python3.14/site-packages/_rocm_sdk_devel/lib:/opt/python/lib/python3.14/site-packages/_rocm_sdk_devel/lib/rocm_sysdeps/lib:/opt/python/lib/python3.14/site-packages/_rocm_sdk_core/lib:/opt/python/lib/python3.14/site-packages/_rocm_sdk_core/lib/rocm_sysdeps/lib",
+    "tensile_libpath": "/opt/python/lib/python3.14/site-packages/_rocm_sdk_libraries/lib/rocblas/library"
+  },
+  "startup": {
+    "total_timeout_s": 180,
+    "probe_timeout_cap_s": 2,
+    "poll_interval_s": 0.25,
+    "shutdown_grace_s": 1.5,
+    "values_are_team_candidates_not_official_budget": true
+  },
+  "pending_identity": [
+    "Actual installation/source/build provenance remains unknown and is disclosed",
+    "New package verifier passed offline memory checks and independent static review; affected Linux acceptance remains pending"
+  ],
+  "engine_package_fingerprints": "model/ENGINE_PACKAGE_FINGERPRINTS.json"
+}
