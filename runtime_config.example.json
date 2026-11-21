@@ -9,6 +9,7 @@
   "temperature": 0.0,
   "top_p": 1.0,
   "request_budget_s": 890,
+  "model_call_timeout_s": 500,
   "archive_reserve_s": 10,
   "evidence_root": "/workspace/v4_submission/evidence",
   "prompt_path": "./skill/prompt_templates/rtl_generation.md",

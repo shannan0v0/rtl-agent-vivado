@@ -26,6 +26,7 @@ class RuntimeConfig:
     prompt_path: str = "./skill/prompt_templates/rtl_generation.md"
     model_lock_path: str = "./runtime/model_service.lock"
     job_total_result_bytes: int = 8 * 1024 * 1024
+    model_call_timeout_s: int = 300
 
     @classmethod
     def load(cls, path: str | Path | None = None) -> "RuntimeConfig":
@@ -73,6 +74,8 @@ class RuntimeConfig:
             raise ValueError("agent must retain the team limits: max_tokens=8192, temperature=0, top_p=1")
         if isinstance(self.request_budget_s, bool) or not isinstance(self.request_budget_s, int):
             raise ValueError("request_budget_s must be an integer")
+        if type(self.model_call_timeout_s) is not int or self.model_call_timeout_s <= 0:
+            raise ValueError("model_call_timeout_s must be a positive integer")
         if isinstance(self.archive_reserve_s, bool) or not isinstance(self.archive_reserve_s, (int, float)):
             raise ValueError("archive_reserve_s must be numeric")
         if self.request_budget_s <= 0 or self.archive_reserve_s < 0:
@@ -89,6 +92,7 @@ class RuntimeConfig:
             "temperature": self.temperature,
             "top_p": self.top_p,
             "request_budget_s": self.request_budget_s,
+            "model_call_timeout_s": self.model_call_timeout_s,
             "archive_reserve_s": self.archive_reserve_s,
             "model_lock_path": self.model_lock_path,
             "entry_host": self.entry_host,

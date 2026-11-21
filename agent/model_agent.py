@@ -1,4 +1,4 @@
-"""Model-led RTL generation with bounded Vivado compile feedback."""
+"""Generate RTL from complete public specifications or model-guided Vivado feedback."""
 
 from __future__ import annotations
 
@@ -13,6 +13,9 @@ from pathlib import Path
 from typing import Any, Callable, Mapping, Tuple
 
 from agent.compile_check import compile_rtl
+from agent.indexed_logic import solve_indexed_logic
+from agent.table_logic import solve_table_logic
+from agent.shift_count_spec import solve_shift_count
 from agent.repair_feedback import compiler_feedback, confirmed_interface_mismatch, interface_feedback, error_history_feedback
 from agent.behavior_review import check_reset_timing, review_feedback
 from agent.public_contract import parse_contract
@@ -118,6 +121,8 @@ Transport = Callable[[str, bytes, float], Tuple[int, Mapping[str, str], bytes]]
 # Frozen experiment copies disable these factors individually for attribution.
 ERROR_HISTORY_ENABLED = True
 INTERFACE_RETRY_ENABLED = True
+COMPILE_TIMEOUT_S = 120.0
+SIMULATION_TIMEOUT_S = 90.0
 
 
 def _generate_once(
@@ -532,7 +537,7 @@ def run_agent(
     transport: Transport | None = None,
     provider_defaults: bool = False,
 ) -> dict[str, Any]:
-    """Bounded compile/interface repair with the separate public-spec review retained."""
+    """Solve fully bound specifications directly, then use the model for remaining tasks."""
     started = time.monotonic()
     deadline = started + max(0.0, timeout_s) - 10.0
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -560,6 +565,42 @@ def run_agent(
     prompt = (task_dir / "prompt.txt").read_text(encoding="utf-8") if (task_dir / "prompt.txt").is_file() else ""
     interface_text = (task_dir / "interface.txt").read_text(encoding="utf-8") if (task_dir / "interface.txt").is_file() else ""
     public_input = compose_public_input(prompt, interface_text)
+    exact = None
+    if time.monotonic() < deadline:
+        for solver in (solve_indexed_logic, solve_table_logic, solve_shift_count):
+            try:
+                exact = solver(prompt, public_input, interface_text)
+            except ValueError:
+                # A numeric range or table cell outside the parser's domain
+                # still belongs to the normal model path.
+                continue
+            if exact is not None:
+                break
+    if exact is not None:
+        rtl, proof = exact
+        if check_prompt_candidate(public_input, rtl).status == "pass":
+            digest = sha256_bytes(rtl.encode("utf-8"))
+            try:
+                check = compile_rtl(rtl, out_dir, timeout_s=min(COMPILE_TIMEOUT_S, max(0.0, deadline - time.monotonic())))
+            except OSError as error:
+                check = {"status": "unavailable", "reason": str(error), "stages": []}
+            events.extend([
+                {"ts": time.time(), "tool": "public_spec_solver", "candidate_sha256": digest, **proof},
+                {"ts": time.time(), "tool": "compile", "candidate_sha256": digest, **check},
+            ])
+            _write_trace(trace_path, events)
+            if check["status"] in ("pass", "unavailable") and time.monotonic() < deadline:
+                _atomic_text(solution_path, rtl)
+                _atomic_text(out_dir / "public_contract.json", json.dumps(proof) + "\n")
+                result = {"request_count": 0, "attempts": 0, "selected_round": None,
+                          "output_status": "candidate_spec_checked", "stop_reason": proof["kind"],
+                          "interface_status": "pass", "compile_status": check["status"],
+                          "functional_status": "unverified", "solution_sha256": digest,
+                          "elapsed_s": round(time.monotonic() - started, 6)}
+                events.append({"ts": time.time(), "tool": "selection", "model_calls": 0, **result})
+                _write_trace(trace_path, events)
+                _append_diagnostic(out_dir / "diagnostics.jsonl", {"state": "public_spec_output", **result})
+                return result
     try:
         contract = parse_contract(public_input)
     except Exception as error:
@@ -645,10 +686,18 @@ def run_agent(
                 events[event_index] = event
             _write_trace(trace_path, events)
 
+        # Extend the historical 300s call only from time beyond the downstream
+        # checks. Short jobs retain their original opportunity to produce RTL.
+        call_budget = min(300.0, remaining)
+        if not provider_defaults:
+            check_budget = COMPILE_TIMEOUT_S
+            if contract.get("status") == "supported":
+                check_budget += SIMULATION_TIMEOUT_S
+            call_budget = min(config.model_call_timeout_s, max(call_budget, remaining - check_budget))
         attempts += 1
         result = _generate_once(
             task_dir, attempt_dir, config,
-            timeout_s=min(300.0, remaining), transport=transport,
+            timeout_s=call_budget, transport=transport,
             provider_defaults=provider_defaults,
             repair=repair, on_trace=record_model,
             fresh_start=fresh_start,
@@ -729,7 +778,7 @@ def run_agent(
         events.append(event)
         _write_trace(trace_path, events)
         try:
-            check = compile_rtl(candidate, attempt_dir, timeout_s=min(120.0, max(0.0, deadline - time.monotonic())))
+            check = compile_rtl(candidate, attempt_dir, timeout_s=min(COMPILE_TIMEOUT_S, max(0.0, deadline - time.monotonic())))
         except Exception as error:
             check = {"status": "unavailable", "reason": "{}: {}".format(type(error).__name__, str(error)[:500]), "stages": []}
         _atomic_text(attempt_dir / "compile_result.json", json.dumps(check, ensure_ascii=False, sort_keys=True) + "\n")
@@ -763,7 +812,7 @@ def run_agent(
             function_started = time.time()
             try:
                 function = functional_check(candidate, contract, attempt_dir,
-                                            timeout_s=min(90.0, max(0.0, deadline-time.monotonic())))
+                                            timeout_s=min(SIMULATION_TIMEOUT_S, max(0.0, deadline-time.monotonic())))
             except Exception as error:
                 function = {"status": "unavailable", "reason": "public self-check failed: " + type(error).__name__}
             _atomic_text(attempt_dir / "functional_result.json", json.dumps(function, sort_keys=True) + "\n")

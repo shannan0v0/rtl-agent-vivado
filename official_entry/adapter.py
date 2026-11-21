@@ -1314,6 +1314,7 @@ class OfficialEntry:
         trace_events: list[dict[str, Any]] = []
         trace_has_interface_rejection = False
         trace_has_checked_candidate = False
+        spec_candidate_digest = None
         try:
             for line in trace.splitlines():
                 require_time("trace event parsing")
@@ -1323,6 +1324,8 @@ class OfficialEntry:
                         raise ValueError("trace event is not an object")
                     if mode == "baseline":
                         trace_events.append(event)
+                    elif event.get("tool") == "public_spec_solver":
+                        spec_candidate_digest = event.get("candidate_sha256")
                     if (
                         event.get("tool") == "llm"
                         and event.get("output_status") == "empty_interface_or_format_failure"
@@ -1444,6 +1447,15 @@ class OfficialEntry:
                 and trace_has_interface_rejection
             ):
                 return "", trace, "empty_solution", True
+            return solution, trace, "invalid_output_status", True
+
+        if detail_value == "candidate_spec_checked":
+            if (status_value in ("", "candidate_spec_checked") and interface_value == "pass"
+                    and solution_state == "readable" and solution and spec_candidate_digest
+                    and output_status.get("request_count") == 0
+                    and spec_candidate_digest == output_status.get("solution_sha256")
+                    and spec_candidate_digest == hashlib.sha256(solution.encode("utf-8")).hexdigest()):
+                return solution, trace, "success", True
             return solution, trace, "invalid_output_status", True
 
         if detail_value == "candidate_checked":
