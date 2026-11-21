@@ -18,7 +18,8 @@ SCALAR_INTERFACE = re.compile(
 _INTRO = re.compile(
     (rf"\s*I would like you to implement a module named {_ID} with the following interface\. "
      r"All input and output ports are (?:one|1) bit unless otherwise specified\. ").replace(" ", r"\s+")
-    + rf"(?:[ \t]*[-*][ \t]*(?:input|output)[ \t]+{_ID}[ \t]*\r?\n)+", re.I,
+    + rf"(?:[ \t]*[-*][ \t]*(?:input|output)[ \t]+{_ID}"
+      r"(?:[ \t]*\([ \t]*[1-4][ \t]+bits?[ \t]*\))?[ \t]*\r?\n)+", re.I,
 )
 _SPEC = re.compile(
     rf"The module should implement a digital system with (?:(?P<count>one|two|three|four|\d+) )?inputs? "

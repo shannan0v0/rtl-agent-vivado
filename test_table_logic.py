@@ -68,5 +68,74 @@ left    1  0
                 self.assertIsNone(solve(self.TRUTH, header))
 
 
+class WaveformLogic(unittest.TestCase):
+    HEADER = "module pair(input a, input b, output parity, output carry);"
+    WAVE = """Combinational waveform:
+time carry b parity a
+0ns  0 0 0 0
+2ns  0 0 1 1
+5ns  1 1 0 1
+9ns  0 1 1 0
+10ns 0 0 0 0
+"""
+
+    def test_permuted_waveform_columns_multiple_outputs_and_repeated_sample(self):
+        rtl, proof = solve(self.WAVE, self.HEADER)
+        self.assertIn("assign parity = (~a & b) | (a & ~b);", rtl)
+        self.assertIn("assign carry = (a & b);", rtl)
+        self.assertEqual(proof["table_format"], "waveform")
+        self.assertEqual(proof["observed_samples"], 5)
+        self.assertEqual(proof["input_rows"], 4)
+        self.assertEqual(proof["checked_output_cells"], 8)
+
+    def test_incomplete_uncertain_and_sequential_observations_defer(self):
+        for source in (
+            self.WAVE.replace("2ns  0 0 1 1\n", ""),
+            self.WAVE.replace("10ns 0 0 0 0", "10ns 0 0 1 0"),
+            self.WAVE.replace("5ns  1", "5ns  x"),
+            self.WAVE.replace("carry b parity a", "carry a parity a"),
+            self.WAVE.replace("5ns", "1ns"),
+            self.WAVE.replace("5ns", "5ps"),
+            self.WAVE.replace("Combinational", "Simulation"),
+            self.WAVE.replace("Combinational", "Sequential"),
+            self.WAVE + "Implement with NAND gates only.",
+        ):
+            with self.subTest(source=source):
+                self.assertIsNone(solve(source, self.HEADER))
+
+
+class PackedTableLogic(unittest.TestCase):
+    HEADER = "module indexed(input wire [1:0] bus, output y);"
+    KMAP = """The module should implement the function y shown in the Karnaugh map below.
+     bus[0]
+bus[1] 1 0
+1 | 1 | 0
+0 | 1 | 0"""
+
+    def test_packed_indices_determine_the_output_independently_of_column_order(self):
+        rtl, proof = solve(self.KMAP, self.HEADER)
+        self.assertIn("input wire [1:0] bus", rtl)
+        self.assertIn("assign y = (bus[0]);", rtl)
+        self.assertEqual(proof["input_order"], ["bus[1]", "bus[0]"])
+        self.assertEqual(proof["checked_output_cells"], 4)
+
+    def test_wrong_output_out_of_range_or_overlapping_indices_defer(self):
+        for source in (
+            self.KMAP.replace("function y", "function z"),
+            self.KMAP.replace("bus[0]", "bus[2]"),
+            self.KMAP.replace("bus[0]", "bus[1]"),
+        ):
+            with self.subTest(source=source):
+                self.assertIsNone(solve(source, self.HEADER))
+        self.assertIsNone(solve(self.KMAP, self.HEADER.replace("[1:0]", "[0:1]")))
+
+    def test_individual_bus_bits_in_truth_table_with_legal_dollar_in_name(self):
+        header = self.HEADER.replace("bus", "data$in")
+        table = "Truth table:\ndata$in[0]|y|data$in[1]\n0|0|0\n1|0|0\n0|1|1\n1|1|1"
+        rtl, proof = solve(table, header)
+        self.assertIn("assign y = (data$in[1]);", rtl)
+        self.assertEqual(proof["checked_output_cells"], 4)
+
+
 if __name__ == "__main__":
     unittest.main()

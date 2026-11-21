@@ -21,7 +21,8 @@ def _axis(label, available):
 def _input_values(bits, values, ports):
     packed={n:0 for n,p in ports.items() if p['direction']=='input'}
     for bit,value in zip(bits,values):
-        m=re.fullmatch(r'([A-Za-z_]\w*)(?:\[(\d+)\])?',bit)
+        m=re.fullmatch(r'([A-Za-z_][A-Za-z0-9_$]*)(?:\[(\d+)\])?',bit)
+        if not m:raise ValueError('unsupported port or bit label')
         name,index=m[1],int(m[2] or 0)
         packed[name]|=int(value)<<index
     return packed
