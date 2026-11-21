@@ -1,6 +1,6 @@
-# RTL Agent · 使用 Vivado 检查与修复生成的 Verilog
+# 逻辑回声（RTL Echo）
 
-输入描述电路行为和端口的文本，Agent 可使用本地 Qwen 27B 或你指定的模型 API 生成 Verilog。配好 Vivado 后，Agent 会检查编译和设计展开，并将诊断或公开规格检查发现的反例反馈给模型。每题最多调用模型三次。
+RTL Echo 根据电路行为和端口描述，使用本地 Qwen 27B 或你指定的模型 API 生成 Verilog。配好 Vivado 后，工具会检查编译和设计展开，并将诊断或公开规格检查发现的反例反馈给模型，用于修复代码。每题最多调用模型三次。
 
 ## 用自己的模型 API
 
@@ -34,7 +34,7 @@
 
 ```bash
 set -euo pipefail
-git clone https://github.com/shannan0v0/rtl-agent-vivado.git /opt/rtl-agent
+git clone https://github.com/shannan0v0/rtl-echo.git /opt/rtl-agent
 cd /opt/rtl-agent
 export RTL_MODEL_LED_PYTHON=/opt/python/bin/python3
 "$RTL_MODEL_LED_PYTHON" -m pip install -r requirements-table-solver.txt
@@ -102,6 +102,6 @@ cd /opt/rtl-agent
 
 ## 许可证
 
-RTL Agent 团队编写的代码采用 GNU 通用公共许可证第 3 版（SPDX 标识符 `GPL-3.0-only`）。[GPLv3 许可全文](LICENSE)
+RTL Echo 团队编写的代码采用 GNU 通用公共许可证第 3 版（SPDX 标识符 `GPL-3.0-only`）。[GPLv3 许可全文](LICENSE)
 
 AMD 提供了赛事基线运行器 `baseline.py` 和启动脚本 `run_baseline.sh`。仓库根目录及 `official_entry/` 下的四个文件均保留了上游原始内容，版权归属为 Copyright (c) 2026 AMD，按 MIT 许可证分发。再分发这些文件时请保留其版权和许可声明。[完整许可文本](LICENSES/AMD-MIT.txt) · [上游仓库](https://gitee.com/Vickyiii/rtlagent2026) · [来源版本与文件校验值](official_entry/baseline_identity.py)
