@@ -100,6 +100,8 @@ cd /opt/rtl-agent
 
 服务地址为 `http://127.0.0.1:7860`，鉴权使用 `Authorization: Bearer <token>`。通过 `GET /v1/health` 查看就绪状态，正常应返回 HTTP 200 和 `ready: true`。任务接口为 `POST /v1/solve`，用返回的任务 ID 查询 `GET /v1/jobs/<job_id>`。执行 `./serve/run_api.sh stop` 可停止任务 API，本地模型服务仍驻留。[HTTP 接口实现](official_entry/server.py)
 
-## 第三方代码与许可
+## 许可证
+
+RTL Agent 团队编写的代码采用 GNU 通用公共许可证第 3 版（SPDX 标识符 `GPL-3.0-only`）。[GPLv3 许可全文](LICENSE)
 
 AMD 提供了赛事基线运行器 `baseline.py` 和启动脚本 `run_baseline.sh`。仓库根目录及 `official_entry/` 下的四个文件均保留了上游原始内容，版权归属为 Copyright (c) 2026 AMD，按 MIT 许可证分发。再分发这些文件时请保留其版权和许可声明。[完整许可文本](LICENSES/AMD-MIT.txt) · [上游仓库](https://gitee.com/Vickyiii/rtlagent2026) · [来源版本与文件校验值](official_entry/baseline_identity.py)
